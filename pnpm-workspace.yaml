@@ -1,0 +1,14 @@
+packages:
+  - "apps/*"
+  - "contracts"
+
+allowBuilds:
+  '@prisma/client': true
+  '@prisma/engines': true
+  bufferutil: true
+  esbuild: true
+  keccak: true
+  prisma: true
+  secp256k1: true
+  unrs-resolver: true
+  utf-8-validate: true

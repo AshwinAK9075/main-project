@@ -1,0 +1,17 @@
+{
+  "name": "forest-carbon-mrv",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Forest Carbon MRV Calculator and Web3 Marketplace",
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter web build",
+    "lint": "pnpm --filter web lint",
+    "test": "pnpm --filter web test",
+    "contracts:compile": "pnpm --filter contracts compile",
+    "contracts:test": "pnpm --filter contracts test"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3"
+  }
+}

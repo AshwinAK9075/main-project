@@ -1,0 +1,191 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  passwordHash  String
+  role          String    @default("LANDOWNER") // LANDOWNER | VERIFIER | BUYER | ADMIN
+  walletAddress String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  projects      Project[]
+  verifications Verification[]
+  purchases     Purchase[]
+  retirements   Retirement[]
+  auditLogs     AuditLog[]
+
+  @@index([email])
+  @@index([role])
+}
+
+model Project {
+  id              String             @id @default(cuid())
+  ownerId         String
+  name            String
+  description     String
+  country         String
+  region          String
+  latitude        Float
+  longitude       Float
+  areaHectares    Float
+  status          String             @default("DRAFT") // DRAFT | SUBMITTED | UNDER_REVIEW | VERIFIED | REJECTED | MINTED
+  rejectionReason String?
+  configVersion   String             @default("v1.0.0")
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  owner           User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  trees           TreeMeasurement[]
+  calculation     CalculationResult?
+  verifications   Verification[]
+  creditBatch     CreditBatch?
+
+  @@index([ownerId])
+  @@index([status])
+}
+
+model TreeMeasurement {
+  id             String   @id @default(cuid())
+  projectId      String
+  treeType       String   // HARDWOOD_BROADLEAF | SOFTWOOD_CONIFER | FAST_GROWING_TROPICAL
+  circumferenceM Float
+  heightM        Float
+  treeCount      Int      @default(1)
+  speciesNote    String?
+  createdAt      DateTime @default(now())
+
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model CalculationResult {
+  id                String   @id @default(cuid())
+  projectId         String   @unique
+  totalGrossCredits Float
+  totalNetCredits   Float
+  totalCo2eKg       Float
+  breakdownJson     String   // Serialized JSON of full step-by-step breakdown
+  configVersion     String   @default("v1.0.0")
+  calculatedAt      DateTime @default(now())
+
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Verification {
+  id          String   @id @default(cuid())
+  projectId   String
+  verifierId  String
+  decision    String   // APPROVED | REJECTED
+  notes       String?
+  decidedAt   DateTime @default(now())
+
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  verifier    User     @relation(fields: [verifierId], references: [id])
+
+  @@index([projectId])
+  @@index([verifierId])
+}
+
+model CreditBatch {
+  id           String        @id @default(cuid())
+  projectId    String        @unique
+  tokenId      String        @unique
+  amountMinted Int           // In integer milli-credits (1 credit = 0.001 tCO2e)
+  ipfsCid      String
+  ipfsUrl      String
+  mintTxHash   String
+  chainId      Int           @default(31337)
+  mintedAt     DateTime      @default(now())
+
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  listings     Listing[]
+  retirements  Retirement[]
+
+  @@index([tokenId])
+}
+
+model Listing {
+  id                 String     @id @default(cuid())
+  batchId            String
+  sellerId           String
+  pricePerCreditUsdc Float
+  quantityAvailable  Int
+  status             String     @default("ACTIVE") // ACTIVE | SOLD_OUT | CANCELLED
+  onchainListingId   String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  batch              CreditBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  purchases          Purchase[]
+
+  @@index([batchId])
+  @@index([status])
+}
+
+model Purchase {
+  id        String   @id @default(cuid())
+  listingId String
+  buyerId   String
+  quantity  Int
+  totalUsdc Float
+  txHash    String
+  createdAt DateTime @default(now())
+
+  listing   Listing  @relation(fields: [listingId], references: [id])
+  buyer     User     @relation(fields: [buyerId], references: [id])
+
+  @@index([listingId])
+  @@index([buyerId])
+}
+
+model Retirement {
+  id                String      @id @default(cuid())
+  batchId           String
+  userId            String
+  quantity          Int         // In milli-credits
+  beneficiaryName   String
+  reason            String
+  txHash            String
+  certificateNumber String      @unique
+  retiredAt         DateTime    @default(now())
+
+  batch             CreditBatch @relation(fields: [batchId], references: [id])
+  user              User        @relation(fields: [userId], references: [id])
+
+  @@index([batchId])
+  @@index([userId])
+}
+
+model CarbonConfig {
+  id         String   @id @default(cuid())
+  version    String   @unique
+  valuesJson String   // Serialized CarbonConfigValues
+  isActive   Boolean  @default(true)
+  createdBy  String
+  createdAt  DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String
+  action    String
+  entity    String
+  entityId  String
+  metaJson  String?
+  createdAt DateTime @default(now())
+
+  actor     User     @relation(fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([entity, entityId])
+}
